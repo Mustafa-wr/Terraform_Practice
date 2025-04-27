@@ -1,3 +1,9 @@
+variable "resource_group_name" {
+  description = "The name of the resource group"
+  type        = string
+  default     = "rg-mine"
+}
+
 data "azurerm_platform_image" "mine" {
   location            = azurerm_resource_group.rg.location
   publisher           = "debian"
@@ -6,7 +12,7 @@ data "azurerm_platform_image" "mine" {
 }
 
 resource "azurerm_resource_group" "rg" {
-  name     = "myTFResourceGroup"
+  name     = var.resource_group_name
   location = "westus2"
 }
 
