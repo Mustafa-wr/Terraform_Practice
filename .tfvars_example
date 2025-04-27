@@ -1,0 +1,6 @@
+resource_group_name = "group_name"
+location = "eastus"
+admin_username = "admin"
+admin_password = "1234"
+ssh_public_key = "~/.ssh/id_rsa.pub"
+vm_network_name = "network_name"

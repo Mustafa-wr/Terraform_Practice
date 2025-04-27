@@ -1,7 +1,48 @@
+provider "azurerm" {
+  features {}
+}
 variable "resource_group_name" {
   description = "The name of the resource group"
   type        = string
   default     = "rg-mine"
+}
+
+variable "location" {
+  description = "The Azure location to deploy resources"
+  type        = string
+  default     = "westus2"
+}
+
+variable "admin_username" {
+  description = "The admin username for the virtual machine"
+  type        = string
+  default     = "adminuser"
+  
+}
+
+variable "admin_password" {
+  description = "The admin password for the virtual machine"
+  type        = string
+  default     = "P@ssw0rd1234!"
+}
+
+variable "ssh_public_key" {
+  description = "The SSH public key for the virtual machine"
+  type        = string
+  default     = "~/.ssh/id_rsa.pub"
+}
+
+variable "vm_network_name" {
+  description = "The name of the network interface for the virtual machine"
+  type        = string
+  default     = "mine-nic"
+}
+
+variable "ssh_private_key_path" {
+  description = "The path to the SSH private key for the virtual machine"
+  type        = string
+  default     = "~/.ssh/id_rsa"
+  sensitive = true
 }
 
 data "azurerm_platform_image" "mine" {
@@ -13,14 +54,14 @@ data "azurerm_platform_image" "mine" {
 
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_group_name
-  location = "westus2"
+  location = var.location
 }
 
 resource "azurerm_virtual_network" "mine" {
-  name                = "mine-network"
+  name                = var.vm_network_name
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = var.resource_group_name
 }
 
 resource "azurerm_subnet" "mine" {
@@ -39,7 +80,7 @@ resource "azurerm_public_ip" "mine" {
 
 
 resource "azurerm_network_interface" "mine" {
-  name                = "mine-nic"
+  name                = var.vm_network_name
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -51,34 +92,32 @@ resource "azurerm_network_interface" "mine" {
   }
 }
 
-resource "azurerm_linux_virtual_machine" "mine" {
-  name                = "mine-machine"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  size                = "Standard_A2_v2"
-  admin_username      = "adminuser"
-  network_interface_ids = [
-    azurerm_network_interface.mine.id,
-  ]
+module "vm" {
+  source               = "./modules/vm"
+  location             = var.location
+  resource_group_name  = azurerm_resource_group.rg.name
+  admin_username       = var.admin_username
+  ssh_public_key       = var.ssh_public_key
+  network_interface_id = azurerm_network_interface.mine.id
+}
 
-  admin_ssh_key {
-    username   = "adminuser"
-    public_key = file("~/.ssh/id_rsa.pub")
-  }
+resource "null_resource" "configure_vm" {
+  depends_on = [module.vm.linux_virtual_machine]
 
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt-get update",
+      "sudo apt-get install -y nginx"
+    ]
 
-  source_image_reference {
-    publisher = data.azurerm_platform_image.mine.publisher
-	offer     = data.azurerm_platform_image.mine.offer
-	sku       = data.azurerm_platform_image.mine.sku
-	version   = data.azurerm_platform_image.mine.version
+    connection {
+      type        = "ssh"
+      user        = var.admin_username
+      private_key = file(var.ssh_private_key_path)
+      host        = azurerm_public_ip.mine.ip_address
+      timeout     = "5m"
+    }
   }
 }
 
-provider "azurerm" {
-  features {}
-}
+
