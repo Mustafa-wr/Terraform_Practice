@@ -1,5 +1,3 @@
-# In main.tf - Create the resource group, network, and DNS zone components
-
 provider "azurerm" {
   features {}
 }
@@ -74,7 +72,6 @@ resource "azurerm_subnet" "frontend" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-# Define backend subnet
 resource "azurerm_subnet" "backend" {
   name                 = "backend-subnet"
   resource_group_name  = azurerm_resource_group.rg.name
@@ -82,14 +79,12 @@ resource "azurerm_subnet" "backend" {
   address_prefixes     = ["10.0.2.0/24"]
 }
 
-# Create Frontend NSG
 resource "azurerm_network_security_group" "frontend_nsg" {
   name                = "frontend-nsg"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 }
 
-# Frontend NSG Rules - Allow HTTP
 resource "azurerm_network_security_rule" "allow_http" {
   name                        = "allow-http"
   priority                    = 100
@@ -104,7 +99,6 @@ resource "azurerm_network_security_rule" "allow_http" {
   network_security_group_name = azurerm_network_security_group.frontend_nsg.name
 }
 
-# Frontend NSG Rules - Allow HTTPS
 resource "azurerm_network_security_rule" "allow_https" {
   name                        = "allow-https"
   priority                    = 110
@@ -119,14 +113,12 @@ resource "azurerm_network_security_rule" "allow_https" {
   network_security_group_name = azurerm_network_security_group.frontend_nsg.name
 }
 
-# Create Backend NSG
 resource "azurerm_network_security_group" "backend_nsg" {
   name                = "backend-nsg"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 }
 
-# Backend NSG Rule - Allow traffic ONLY from Frontend subnet
 resource "azurerm_network_security_rule" "allow_frontend_only" {
   name                        = "allow-frontend-only"
   priority                    = 100
@@ -141,7 +133,6 @@ resource "azurerm_network_security_rule" "allow_frontend_only" {
   network_security_group_name = azurerm_network_security_group.backend_nsg.name
 }
 
-# Backend NSG Rule - Deny all other inbound traffic
 resource "azurerm_network_security_rule" "deny_all_inbound" {
   name                        = "deny-all-inbound"
   priority                    = 4000
@@ -156,7 +147,6 @@ resource "azurerm_network_security_rule" "deny_all_inbound" {
   network_security_group_name = azurerm_network_security_group.backend_nsg.name
 }
 
-# Associate NSGs with corresponding Subnets
 resource "azurerm_subnet_network_security_group_association" "frontend_nsg_association" {
   subnet_id                 = azurerm_subnet.frontend.id
   network_security_group_id = azurerm_network_security_group.frontend_nsg.id
